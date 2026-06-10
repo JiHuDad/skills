@@ -1,0 +1,14 @@
+{
+  "variants": [
+    {
+      "name": "platform_linux",
+      "defines": ["PLATFORM_LINUX=1"],
+      "description": "Linux platform — uses epoll/socket_linux_init"
+    },
+    {
+      "name": "platform_windows",
+      "defines": ["PLATFORM_WINDOWS=1"],
+      "description": "Windows platform — uses iocp/socket_windows_init"
+    }
+  ]
+}
