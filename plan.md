@@ -78,6 +78,18 @@ deliverable:
 
 커밋: `feat: add output contract schema and callgraph query`
 
+### Phase 2.5 — Variant 분석 (Multi-environment)
+**파일**: `queries/env_branches.sc`, `queries/compare_variants.sc`, `scripts/compare_variants.sh`
+
+deliverable:
+- `env_branches.sc`: if/switch에서 env/mode/platform/config 패턴 감지
+- `compare_variants.sc`: 단일 CPG 함수 인벤토리 덤프 (compare_variants.sh의 재료)
+- `compare_variants.sh`: 두 CPG를 각각 질의 후 Python으로 set-diff → `only_in_a/b + changed_call_graph` JSON
+- `gen_cpg.sh --variant-config` 옵션으로 variants.json 읽어 다중 CPG 생성
+- `tests/fixtures/sample_c/platform.c` + `variants.json`: `#ifdef` 픽스처
+
+커밋: `feat: add variant analysis queries (env_branches, compare_variants)`
+
 ### Phase 3 — cfg_summary + dataflow 쿼리
 **파일**: `queries/cfg_summary.sc`, `queries/dataflow.sc`
 
@@ -107,6 +119,9 @@ deliverable:
 - [ ] 출력 JSON이 `analysis_output.schema.json` 검증 통과
 - [ ] SKILL.md만 읽은 에이전트가 쿼리 올바르게 실행 가능
 - [ ] CPG 부재 시 명확한 안내 메시지 + 종료코드 2
+- [ ] `env_branches` 쿼리가 `platform.c`의 `getenv`/`platform` 분기를 탐지
+- [ ] `compare_variants.sh`로 linux vs windows CPG diff JSON 반환
+- [ ] `variants.json` + `gen_cpg.sh --variant-config`로 다중 CPG 생성
 
 ## 6. 리스크 및 대응
 
