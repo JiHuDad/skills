@@ -1,0 +1,32 @@
+{
+  "_comment": "Copy to modules-config.json and fill in your module definitions.",
+  "cpg": "/your-workspace/cpg.bin",
+  "output_dir": "sdd-export/joern",
+  "modules": [
+    {
+      "name": "auth",
+      "description": "인증 모듈",
+      "functions": [
+        { "name": "validate_token", "callgraph_depth": 2 },
+        { "name": "login_handler",  "callgraph_depth": 1 }
+      ],
+      "dataflows": [
+        { "source": "recv_request", "sink": "exec_query" }
+      ],
+      "env_scan": true
+    },
+    {
+      "name": "socket",
+      "description": "소켓/네트워크 모듈",
+      "functions": [
+        { "name": "recv_packet", "callgraph_depth": 2 },
+        { "name": "init_socket", "callgraph_depth": 1 }
+      ],
+      "dataflows": [
+        { "source": "recv_packet", "sink": "exec_cmd" }
+      ],
+      "env_scan": true,
+      "variant_config": "tests/fixtures/sample_c/variants.json"
+    }
+  ]
+}

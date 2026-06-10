@@ -183,6 +183,74 @@ compare_variants.sh --cpg-a cpg_linux.bin --cpg-b cpg_windows.bin
 
 ---
 
+## 지식층 Export 워크플로우
+
+분석 결과를 별도 지식층 repo(knowledge-layer)에 저장할 때 사용한다.
+블록 워크스페이스와 지식층 repo가 서로 다른 경우의 표준 흐름이다.
+
+### Step 1 — modules-config.json 작성 (최초 1회)
+
+```bash
+cp tools/code-analysis/harness/modules-config.example.json modules-config.json
+# 편집: cpg 경로, 모듈명, 분석할 함수, dataflow source/sink 설정
+```
+
+### Step 2 — 분석 실행 및 export (블록 워크스페이스)
+
+```bash
+# CPG가 최신인지 확인 (변경 있으면 재생성)
+bash tools/code-analysis/harness/gen_cpg.sh --out /workspace/cpg.bin src/
+
+# 모든 모듈 분석 실행 → sdd-export/joern/ 생성
+bash tools/code-analysis/harness/export_analysis.sh --config modules-config.json
+
+# 결과 확인
+ls sdd-export/joern/modules/
+cat sdd-export/joern/manifest.json
+```
+
+출력 구조:
+```
+sdd-export/joern/
+├── manifest.json        ← 생성일, 소스 커밋, CPG 해시
+├── index.md             ← 전체 모듈 요약
+├── modules/
+│   ├── auth.md          ← callgraph + dataflow + env_branches
+│   └── socket.md
+└── variants/            ← platform diff (variant_config 설정 시)
+```
+
+### Step 3 — 지식층 repo에 동기화 (검토 후 수동)
+
+```bash
+# 지식층 repo 루트에서 실행
+bash /path/to/block-ws/tools/code-analysis/harness/sync_to_knowledge.sh \
+  --src  /path/to/block-ws/sdd-export/joern \
+  --dest sdd/joern
+
+# 변경 diff 확인 → y 입력 시 자동 커밋
+# CI/자동화 환경에서는 --auto-commit 플래그 사용
+```
+
+### 신선도 경고
+
+`sync_to_knowledge.sh`는 manifest의 `source_commit`과 현재 HEAD를 비교한다.
+20커밋 이상 뒤처진 경우 경고 후 진행 여부를 묻는다 (`--max-age`로 조정).
+
+```
+WARN: 분석이 소스 HEAD보다 35커밋 뒤처져 있습니다.
+      block workspace에서 gen_cpg.sh + export_analysis.sh 재실행 권장.
+계속 진행하시겠습니까? [y/N]
+```
+
+### 충돌 방지 규칙
+
+- `sdd/joern/` 전체는 **자동 생성 전용** — 사람이 직접 편집하지 않는다
+- 기존 `sdd/.analysis/`, `sdd/modules/` 등은 sync 경로에 포함되지 않아 안전하다
+- `sdd/traceability.md`에 `sdd/joern/index.md` 링크만 추가하면 기존 SDD와 연결된다
+
+---
+
 ## Error Handling
 
 Every query returns a schema-compliant JSON even on failure:
