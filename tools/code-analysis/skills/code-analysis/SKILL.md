@@ -14,22 +14,30 @@ description: >
 
 ## Prerequisites
 
-Before any query, verify the CPG exists and is fresh:
+> **경로는 `joern-paths.mdc`에 설정된 값을 사용한다.**
+> `CPG_PATH`, `QUERY_SH`, `HARNESS` 변수가 정의되어 있지 않으면
+> 사용자에게 `joern-paths.mdc` 설정을 먼저 완료해달라고 요청한다.
+
+### Step 1 — CPG 존재 확인 (쿼리 전 필수)
 
 ```bash
-ls -lh /path/to/cpg.bin          # file must exist
-cat /path/to/cpg.bin.sha256       # saved hash from last gen_cpg.sh run
+ls -lh $CPG_PATH          # 파일이 있어야 함
+cat $CPG_PATH.sha256      # 마지막 gen_cpg.sh 실행 시 저장된 해시
 ```
 
-If the CPG is missing or older than the most recent source commit:
+### Step 2 — CPG가 없거나 오래된 경우
 
-1. **Tell the user** — do not silently skip.
-2. Instruct them to run (outside the agent session):
-   ```bash
-   cd tools/code-analysis/harness
-   bash gen_cpg.sh --out /workspace/cpg.bin /path/to/src
-   ```
-3. Wait for confirmation that the CPG is ready, then continue.
+**에이전트가 직접 실행하지 않는다.** 사용자에게 아래를 요청하고 대기한다:
+
+```
+CPG 파일이 없거나 오래됐습니다. 에이전트 세션 밖 터미널에서 아래 명령을 실행해주세요:
+
+  bash $HARNESS/gen_cpg.sh --out $CPG_PATH /path/to/src
+
+완료되면 알려주시면 분석을 진행하겠습니다.
+```
+
+완료 확인 후 쿼리를 실행한다. CPG 없이 조용히 넘어가는 것은 금지.
 
 ---
 
@@ -55,8 +63,8 @@ When writing or reviewing a `design.md` that modifies existing code:
 **When**: understanding impact before refactoring, documenting API surface.
 
 ```bash
-./scripts/query.sh \
-  --cpg /workspace/cpg.bin \
+bash $QUERY_SH \
+  --cpg $CPG_PATH \
   --query callgraph \
   --target "functionName" \
   --depth 2              # increase for wider blast radius
@@ -74,8 +82,8 @@ Output key fields:
 **When**: before refactoring a "complex" function, or flagging technical debt.
 
 ```bash
-./scripts/query.sh \
-  --cpg /workspace/cpg.bin \
+bash $QUERY_SH \
+  --cpg $CPG_PATH \
   --query cfg_summary \
   --target "functionName"
 ```
@@ -91,8 +99,8 @@ Rule of thumb: CC > 10 → consider splitting before modifying.
 **When**: security review, understanding data propagation, verifying sanitisation.
 
 ```bash
-./scripts/query.sh \
-  --cpg /workspace/cpg.bin \
+bash $QUERY_SH \
+  --cpg $CPG_PATH \
   --query dataflow \
   --source "recvPacket" \
   --sink "execCmd"
@@ -114,13 +122,13 @@ platform-specific code paths before a cross-env refactor.
 
 ```bash
 # Scan entire codebase
-./scripts/query.sh \
-  --cpg /workspace/cpg.bin \
+bash $QUERY_SH \
+  --cpg $CPG_PATH \
   --query env_branches
 
 # Restrict to one function
-./scripts/query.sh \
-  --cpg /workspace/cpg.bin \
+bash $QUERY_SH \
+  --cpg $CPG_PATH \
   --query env_branches \
   --target "configure"
 ```
@@ -138,15 +146,15 @@ design.md.
 
 Step 1 — generate per-variant CPGs (harness, outside session):
 ```bash
-bash harness/gen_cpg.sh \
-  --variant-config tests/fixtures/sample_c/variants.json \
+bash $HARNESS/gen_cpg.sh \
+  --variant-config variants.json \
   /path/to/src
 # → cpg_platform_linux.bin, cpg_platform_windows.bin
 ```
 
 Step 2 — compare:
 ```bash
-./scripts/compare_variants.sh \
+bash $COMPARE_SH \
   --cpg-a /path/to/src/cpg_platform_linux.bin \
   --cpg-b /path/to/src/cpg_platform_windows.bin
 ```
@@ -166,19 +174,19 @@ Example: "I'm changing `parse_msg` in a multi-platform codebase."
 
 ```bash
 # 1. Who will be affected?
-query.sh --cpg cpg.bin --query callgraph --target parse_msg --depth 3
+bash $QUERY_SH --cpg $CPG_PATH --query callgraph --target parse_msg --depth 3
 
 # 2. Is this function complex?
-query.sh --cpg cpg.bin --query cfg_summary --target parse_msg
+bash $QUERY_SH --cpg $CPG_PATH --query cfg_summary --target parse_msg
 
 # 3. Does tainted data reach a dangerous sink via parse_msg?
-query.sh --cpg cpg.bin --query dataflow --source recv_packet --sink exec_cmd
+bash $QUERY_SH --cpg $CPG_PATH --query dataflow --source recv_packet --sink exec_cmd
 
 # 4. Are there env-specific branches inside parse_msg?
-query.sh --cpg cpg.bin --query env_branches --target parse_msg
+bash $QUERY_SH --cpg $CPG_PATH --query env_branches --target parse_msg
 
 # 5. Does parse_msg behave differently across platforms?
-compare_variants.sh --cpg-a cpg_linux.bin --cpg-b cpg_windows.bin
+bash $COMPARE_SH --cpg-a cpg_linux.bin --cpg-b cpg_windows.bin
 ```
 
 ---
@@ -191,18 +199,18 @@ compare_variants.sh --cpg-a cpg_linux.bin --cpg-b cpg_windows.bin
 ### Step 1 — modules-config.json 작성 (최초 1회)
 
 ```bash
-cp tools/code-analysis/harness/modules-config.example.json modules-config.json
+cp $HARNESS/modules-config.example.json $MODULES_CONFIG
 # 편집: cpg 경로, 모듈명, 분석할 함수, dataflow source/sink 설정
 ```
 
-### Step 2 — 분석 실행 및 export (블록 워크스페이스)
+### Step 2 — 분석 실행 및 export (블록 워크스페이스, 터미널에서 수동 실행)
 
 ```bash
 # CPG가 최신인지 확인 (변경 있으면 재생성)
-bash tools/code-analysis/harness/gen_cpg.sh --out /workspace/cpg.bin src/
+bash $HARNESS/gen_cpg.sh --out $CPG_PATH /path/to/src
 
 # 모든 모듈 분석 실행 → sdd-export/joern/ 생성
-bash tools/code-analysis/harness/export_analysis.sh --config modules-config.json
+bash $HARNESS/export_analysis.sh --config $MODULES_CONFIG
 
 # 결과 확인
 ls sdd-export/joern/modules/

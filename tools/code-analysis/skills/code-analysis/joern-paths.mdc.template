@@ -1,0 +1,51 @@
+---
+alwaysApply: true
+---
+# Joern 경로 설정
+
+> 설치 시 1회 수정. `.cursor/rules/joern-paths.mdc` 로 복사 후 아래 경로를 실제 값으로 변경.
+
+## 설치 경로 (수정 필요)
+
+| 변수 | 현재 값 (← 실제 경로로 교체) |
+|------|------------------------------|
+| `SKILL_ROOT` | `.cursor/skills/code-analysis` |
+| `QUERY_SH` | `.cursor/skills/code-analysis/skills/code-analysis/scripts/query.sh` |
+| `COMPARE_SH` | `.cursor/skills/code-analysis/skills/code-analysis/scripts/compare_variants.sh` |
+| `HARNESS` | `.cursor/skills/code-analysis/harness` |
+| `CPG_PATH` | `/workspace/cpg.bin` |
+| `MODULES_CONFIG` | `modules-config.json` |
+
+예시 (실제 설치 경로가 `tools/code-analysis/` 인 경우):
+
+| 변수 | 경로 |
+|------|------|
+| `QUERY_SH` | `tools/code-analysis/skills/code-analysis/scripts/query.sh` |
+| `HARNESS` | `tools/code-analysis/harness` |
+| `CPG_PATH` | `.joern/cpg.bin` |
+
+---
+
+## ⚠️ CPG는 에이전트 밖 터미널에서 수동으로 생성해야 합니다
+
+Joern CPG 생성은 무거운 작업이므로 에이전트 세션 내에서 실행하지 않습니다.
+소스 변경 후, 에이전트에게 분석을 요청하기 **전에** 아래 명령을 터미널에서 실행하세요:
+
+```bash
+# HARNESS 경로와 CPG_PATH를 위 설정값으로 교체
+bash .cursor/skills/code-analysis/harness/gen_cpg.sh \
+  --out /workspace/cpg.bin \
+  /path/to/your/src
+```
+
+성공 시 출력:
+```json
+{"status":"ok","cpg_path":"/workspace/cpg.bin","duration_sec":38}
+```
+
+소스 변경이 없으면 자동으로 스킵됩니다:
+```json
+{"status":"skipped","reason":"up-to-date","cpg_path":"/workspace/cpg.bin"}
+```
+
+**CPG가 없거나 오래된 경우, 에이전트는 쿼리를 실행하지 않고 사용자에게 위 명령 실행을 요청한 뒤 대기합니다.**
